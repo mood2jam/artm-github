@@ -1,0 +1,1 @@
+{"dset": "MNIST", "rotate": 12, "shear": 27, "scale": 0.25, "diff_choice": 3, "num_pairs": 10}

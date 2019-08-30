@@ -1,0 +1,1 @@
+{"dset": "FASHIONMNIST", "rotate": 11, "shear": 13, "scale": 0.11, "all_losses": null, "diff_choice": 4, "num_pairs": 10, "contrast": 0.69, "saturation": 0.18, "hue": 0.27, "rand_crop_size": 25, "num_clusters": 10, "brightness": 0.38}
