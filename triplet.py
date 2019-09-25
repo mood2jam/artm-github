@@ -179,7 +179,7 @@ def run_net(params, transforms):
                                                      shuffle=True)  # Sample our data to get a reference point after every so often
          sample_data, sample_targets = next(iter(sample_loader))
          if params["show_plots"]:
-            show_datasets(sample_data, show_plots=params["show_plots"])
+            show_datasets(sample_data)
          similar_pair_accuracy = np.round(
             len(np.where(sample_targets[0] == sample_targets[1])[0]) / len(sample_targets[0]), 3)
          different_pair_accuracy = np.round(

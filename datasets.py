@@ -94,15 +94,15 @@ class RandomTripletMiningDataset(Dataset):
          np.random.shuffle(random_indices)
          augmented_distances, random_distances = [], []
 
-         if params["show_plots"]:
-            # plt.title("Augmented and Random Distances (boundary is {:.3f})".format(boundary))
-            # plt.axvline(x=rand_min, color='r')
-            # plt.axvline(x=rand_max, color='r')
-            plt.hist(random_distances.cpu(), bins=200, label="Random")
-            # plt.hist(combined.cpu(), bins=bins, label="Combined")
-            # plt.hist(augmented_distances.cpu(), bins=bins, label="Augmented")
-            plt.legend()
-            plt.show()
+         # if params["show_plots"]:
+         #    # plt.title("Augmented and Random Distances (boundary is {:.3f})".format(boundary))
+         #    # plt.axvline(x=rand_min, color='r')
+         #    # plt.axvline(x=rand_max, color='r')
+         #    plt.hist(random_distances.cpu(), bins=200, label="Random")
+         #    # plt.hist(combined.cpu(), bins=bins, label="Combined")
+         #    # plt.hist(augmented_distances.cpu(), bins=bins, label="Augmented")
+         #    plt.legend()
+         #    plt.show()
 
          print("RTM index is {0} (number of pairs is {1})".format(params["rtm_index"], params["num_pairs"]))
 
@@ -114,18 +114,19 @@ class RandomTripletMiningDataset(Dataset):
             self.different_indices = random_indices[indices_mask]
          else:
             random_distances, random_indices = [], []
+            indices_matrix = np.random.choice(self.original_indices, (params["num_pairs"], len(self.original_indices)))
             for i in range(params["num_pairs"]):
                shuffled_indices = np.copy(self.original_indices)
                np.random.shuffle(shuffled_indices)
                # distances.append(F.cosine_similarity(embeddings, embeddings[different_indices], 1))
-               random_distances.append(torch.norm(regular_embeddings[self.original_indices] - regular_embeddings[shuffled_indices], p=2, dim=1))
+               random_distances.append(torch.norm(regular_embeddings[self.original_indices] - regular_embeddings[indices_matrix[i,:]], p=2, dim=1))
                random_indices.append(shuffled_indices)
 
-            random_indices = np.vstack(random_indices)
+            # random_indices = np.vstack(random_indices)
             random_distances = torch.stack(random_distances).cpu()
             different_selection = np.argpartition(random_distances, params["rtm_index"], axis=0)[
                                   params["rtm_index"], :].numpy()  # Gets the rtm_index-th nearest neighbor
-            different_indices = random_indices[different_selection, np.arange(self.original_indices.shape[0])]
+            different_indices = indices_matrix[different_selection, np.arange(self.original_indices.shape[0])]
             self.different_indices = different_indices
             self.similar_indices = np.copy(self.original_indices)
 
