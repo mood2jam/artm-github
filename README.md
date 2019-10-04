@@ -1,9 +1,6 @@
 <h1 align="center">
 Augmentations with Random Triplet Mining for Clustering (ARTM)
 </h1">
-<p align="center">
-  <img width="500" height="500" src="https://restricted.vdl.afrl.af.mil/webdav/programs/atrpedia/Nontechnical_Materials/People/Moody_Jamison/Unsupervised_Clustering_Project/Resources/updated_our_method.gif">
-</p>
 
 ### Usage
 1. Start by cloning the repository.
