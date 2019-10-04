@@ -9,34 +9,99 @@ from tensorboardX import SummaryWriter
 import datetime
 from datasets import RandomTripletMiningDataset
 from util import show_datasets, get_pairwise_accuracy, write_to_tensorboard, print_clustering_accuracy
-from networks import EmbeddingNet, TripletNet
+from networks import EmbeddingNet, TripletNet, Encoder, Decoder
 from sklearn.cluster import KMeans
 import hdbscan
 from losses import TripletLoss
 import random
+from torch import nn
 
 
-def train(model, device, train_loader, train_loss, epoch, optimizer, sample_data, params=None):
+def train(model, device, train_loader, train_loss, epoch, optimizer, sample_data, params=None, decoder=None,):
    model.train()
-   criterion = train_loss
+   triplet_loss = train_loss
+   mse = nn.MSELoss()
+   mses1 = []
+   mses2 = []
+   mses3 = []
+   for batch_idx, (data, target) in enumerate(train_loader):
+      for i in range(len(data)):
+         data[i] = data[i].to(device)
+
+      optimizer.zero_grad()
+
+      with torch.no_grad():
+         anchor, positive, negative = model(data[0], data[1], data[2])
+
+      alphas = torch.rand(params["batch_size"], 1).to(device) * .5
+      interpolated = (1-alphas)*positive + alphas*negative
+      anchor_decoded = decoder(anchor)
+      negative_decoded = decoder(negative)
+      interpolated_decoded = decoder(interpolated)
+
+      anchor, interpolated_decoded_encoded, negative = model(data[0], interpolated_decoded, data[2])
+
+      mse1 = mse(data[0], anchor_decoded)
+      mse2 = mse(data[2], negative_decoded)
+      mse3 = mse(interpolated, interpolated_decoded_encoded)
+      mse_loss = mse1 + mse2 + mse3
+      mse_loss.backward()
+      optimizer.step()
+
+      mses1.append(mse1.item())
+      mses2.append(mse2.item())
+      mses3.append(mse3.item())
+
+
+      if batch_idx % 100 == 0:
+         print('Train Epoch: {} [{}/{} ({:.0f}%)]\tMSE Loss: {:.6f}'.format(
+            epoch, batch_idx*params["batch_size"], len(train_loader.dataset),
+            100. * batch_idx*params["batch_size"] / len(train_loader.dataset), mse_loss.item()))
+      if batch_idx * params["batch_size"] / len(train_loader.dataset) > params["train_fraction"]:
+         break
+
+   plt.figure()
+   plt.plot(np.arange(len(mses1)), mses1, label="mse 1")
+   plt.plot(np.arange(len(mses1)), mses2, label="mse 2")
+   plt.plot(np.arange(len(mses1)), mses3, label="mse 3")
+   plt.legend()
+   plt.show()
 
    for batch_idx, (data, target) in enumerate(train_loader):
       for i in range(len(data)):
          data[i] = data[i].to(device)
 
       optimizer.zero_grad()
-      anchor, positive, negative = model(data[0], data[1], data[2])
 
-      loss = criterion(anchor, positive, negative, device=device)
-      loss.backward()
+      with torch.no_grad():
+         anchor, positive, negative = model(data[0], data[1], data[2])
+         alphas = torch.rand(params["batch_size"], 1).to(device) * .1
+         interpolated = (1 - alphas) * positive + alphas * negative
+         interpolated_decoded = decoder(interpolated)
+         anchor_decoded = decoder(anchor)
+         negative_decoded = decoder(negative)
+
+      anchor_decoded_encoded, interpolated_decoded_encoded, negative_decoded_encoded = model(anchor_decoded, interpolated_decoded, negative_decoded)
+
+      if batch_idx == 0:
+         show_datasets([anchor_decoded, interpolated_decoded, negative_decoded])
+
+      t_loss = triplet_loss(anchor_decoded_encoded, interpolated_decoded_encoded, negative_decoded_encoded, device=device)
+
+      t_loss.backward()
       optimizer.step()
 
+      anchor, positive, negative = model(data[0], interpolated_decoded, data[2])
+      first_loss = triplet_loss(anchor, interpolated_decoded_encoded, negative, device=device)
+
       if batch_idx % 100 == 0:
-         print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+         print('Train Epoch: {} [{}/{} ({:.0f}%)]\tTriplet Loss: {:.6f}'.format(
             epoch, batch_idx*params["batch_size"], len(train_loader.dataset),
-            100. * batch_idx*params["batch_size"] / len(train_loader.dataset), loss.item()))
+            100. * batch_idx*params["batch_size"] / len(train_loader.dataset), first_loss.item()))
       if batch_idx * params["batch_size"] / len(train_loader.dataset) > params["train_fraction"]:
          break
+
+
 
 def test(model, device, test_loader, writer, record_histograms=True, epoch=0, params=None):
    """
@@ -51,6 +116,7 @@ def test(model, device, test_loader, writer, record_histograms=True, epoch=0, pa
             data[i] = data[i].to(device)
 
          anchor, positive, negative = model(data[0], data[1], data[2])
+
          distance_positive = (anchor - positive).pow(2).sum(1).pow(.5)
          distance_negative = (anchor - negative).pow(2).sum(1).pow(.5)
 
@@ -148,7 +214,9 @@ def run_net(params, transforms):
       embedding_net = EmbeddingNet(in_channels=3, adjusting_constant=5) # Change this to VGG for CIFAR10
    elif params["dset"] == "MNIST" or params["dset"] == "FASHIONMNIST":
       embedding_net = EmbeddingNet()
-   model = TripletNet(embedding_net).to(device)
+   encoder = Encoder()
+   decoder = Decoder().to(device)
+   model = TripletNet(encoder).to(device)
 
    # Sets the datetime string to use as an identifier for the future
 
@@ -188,7 +256,7 @@ def run_net(params, transforms):
          print("Different pair accuracy:", different_pair_accuracy)
          params["different_random_pair_accuracy"] = different_pair_accuracy
          params["similar_random_pair_accuracy"] = similar_pair_accuracy
-         train(model, device, train_loader, train_loss, epoch, optimizer, sample_data, params=params)
+         train(model, device, train_loader, train_loss, epoch, optimizer, sample_data, params=params, decoder=decoder)
          embeddings, targets, indices = test(model, device, test_loader, writer, epoch=epoch, params=params)
 
          write_to_tensorboard(params, writer, epoch) # Writes to tensorboard at the end of the epoch

@@ -17,7 +17,7 @@ parser.add_argument('--num_epochs', '-e', type=int, help='number of epochs', def
 parser.add_argument('--weight_decay', '-w', type=int, help='weight decay', default=0.0001)
 parser.add_argument('--dset', '-d', type=str, help='dataset name: MNIST, CIFAR10 or FASHIONMNIST (feel free to add your own datasets)', default='MNIST')
 parser.add_argument('--show_plots', '-p', help='show histograms, confusion matricies, and images throughout training',
-                    default=True, type=lambda x: (str(x).lower() in ['true', '1', 'yes']))
+                    default=False, type=lambda x: (str(x).lower() in ['true', '1', 'yes']))
 parser.add_argument('--rotate', type=int, help='constant that adjusts how the learning rate changes', default=10)
 parser.add_argument('--shear', type=int, help='constant that adjusts how the learning rate changes', default=10)
 parser.add_argument('--scale', type=float, help='float that tells us how big and small to adjust our images (less than 1.0)', default=0.3)

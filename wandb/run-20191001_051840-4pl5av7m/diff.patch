@@ -1,0 +1,302 @@
+diff --git a/__pycache__/losses.cpython-37.pyc b/__pycache__/losses.cpython-37.pyc
+index 47f41e3..053c24a 100644
+Binary files a/__pycache__/losses.cpython-37.pyc and b/__pycache__/losses.cpython-37.pyc differ
+diff --git a/__pycache__/networks.cpython-37.pyc b/__pycache__/networks.cpython-37.pyc
+index 713a29e..e49beea 100644
+Binary files a/__pycache__/networks.cpython-37.pyc and b/__pycache__/networks.cpython-37.pyc differ
+diff --git a/__pycache__/triplet.cpython-37.pyc b/__pycache__/triplet.cpython-37.pyc
+index e6ed17d..e09c015 100644
+Binary files a/__pycache__/triplet.cpython-37.pyc and b/__pycache__/triplet.cpython-37.pyc differ
+diff --git a/__pycache__/util.cpython-37.pyc b/__pycache__/util.cpython-37.pyc
+index 61cd03b..4fbbc69 100644
+Binary files a/__pycache__/util.cpython-37.pyc and b/__pycache__/util.cpython-37.pyc differ
+diff --git a/losses.py b/losses.py
+index 109e76d..fd801e8 100644
+--- a/losses.py
++++ b/losses.py
+@@ -37,5 +37,6 @@ class TripletLoss(nn.Module):
+         # distance_positive = F.cosine_similarity(anchor, negative, 1)
+         distance_positive = (anchor - positive).pow(2).sum(1).pow(.5)
+         distance_negative = (anchor - negative).pow(2).sum(1).pow(.5)
++        # print("distance positive", distance_positive, "distance negative", distance_negative)
+         losses = F.relu(distance_positive**2 + (self.margin - distance_negative)**2)
+         return losses.mean() if size_average else losses.sum()
+diff --git a/networks.py b/networks.py
+index 50510ba..6326b7b 100644
+--- a/networks.py
++++ b/networks.py
+@@ -1,6 +1,7 @@
+ import torch
+ import torch.nn as nn
+ import torch.nn.functional as F
++import math
+ 
+ # The VGG network was taken from https://github.com/kuangliu/pytorch-cifar
+ 
+@@ -106,10 +107,99 @@ class TripletNet(nn.Module):
+     def get_embedding(self, x):
+         return self.embedding_net(x)
+ 
++class Generator(nn.Module):
++    def __init__(self, out_channels=1, adjusting_constant=4):
++        super(Generator, self).__init__()
++        self.fc = nn.Sequential(nn.Linear(10, 256),
++                                nn.PReLU(),
++                                nn.Linear(256, 256),
++                                nn.PReLU(),
++                                nn.Linear(256, 64 * adjusting_constant * adjusting_constant)
++                                )
++        self.convnet = nn.Sequential(nn.ConvTranspose2d(64, 32, 5), nn.PReLU(),  # 64@10*10
++                                     nn.ConvTranspose2d(32, 32, 5), nn.PReLU(),  # 64@10*10
++                                     nn.ConvTranspose2d(32, 16, 5), nn.PReLU(),  # 64@10*10
++                                     nn.ConvTranspose2d(16, 16, 5), nn.PReLU(),  # 64@10*10
++                                     nn.ConvTranspose2d(16, 8, 5), nn.PReLU(),  # 64@10*10
++                                     nn.ConvTranspose2d(8, 8, 3), nn.PReLU(),  # 64@10*10
++                                     nn.ConvTranspose2d(8, out_channels, 3), nn.PReLU())  # 32@28*28
++
++    def forward(self, x):
++        output = self.fc(x)
++        output = output.view(-1, 64, 4, 4)
++        output = self.convnet(output)
++        return output
++
++    def get_embedding(self, x):
++        return self.forward(x)
++
++# Used for the bottom two networks only
++args = {
++    'epochs': 500,
++    'width': 32,
++    'latent_width': 4,
++    'depth': 16,
++    'advdepth': 16,
++    'advweight': 0.5,
++    'reg': 0.2,
++    'latent': 10,
++    'colors': 1,
++    'lr': 0.0001,
++    'batch_size': 64,
++    'device': 'cuda:0'
++}
++scales = int(round(math.log(args['width'] // args['latent_width'], 2)))
++
++class Encoder(nn.Module):
++    def __init__(self, scales=scales, depth=args['depth'], latent=args['latent'], colors=args['colors']):
++        super(Encoder, self).__init__()
++        layers = []
++        layers.append(nn.Conv2d(colors, depth, 1, padding=1))
++        kp = depth
++        for scale in range(scales):
++            k = depth << scale
++            layers.extend([nn.Conv2d(kp, k, 3, padding=1), nn.ReLU()])
++            layers.extend([nn.Conv2d(k, k, 3, padding=1), nn.ReLU()])
++            layers.append(nn.MaxPool2d(2))
++            kp = k
++        k = depth << scales
++        layers.extend([nn.Conv2d(kp, k, 3, padding=1), nn.ReLU()])
++        layers.append(nn.Conv2d(k, latent, 3, padding=0))
++        self.net = nn.Sequential(*layers)
++
++    def forward(self, x):
++        x = self.net(x)
++        x = x.view(-1, args['latent'])
++        return x
++
++class Decoder(nn.Module):
++    def __init__(self, scales=scales+2, depth=args['depth'], latent=args['latent'], colors=args['colors']):
++        super(Decoder, self).__init__()
++        layers = []
++        kp = latent
++        for scale in range(scales - 1, -1, -1):
++            k = depth << scale
++            layers.extend([nn.Conv2d(kp, k, 3, padding=1), nn.ReLU()])
++            layers.extend([nn.Conv2d(k, k, 3, padding=1), nn.ReLU()])
++            layers.append(nn.Upsample(scale_factor=2))
++            kp = k
++        layers.extend([nn.Conv2d(kp, depth, 3, padding=0), nn.ReLU()])
++        layers.append(nn.Conv2d(depth, colors, 3, padding=0))
++        self.net = nn.Sequential(*layers)
++
++    def forward(self, x):
++        x = x.view(-1, args['latent'], 1, 1)
++        x = self.net(x)
++        return x
++
+ def get_embedding_net(params):
+     if params['dset'] == 'MNIST' or params['dset'] == 'FASHIONMNIST':
+-        model = EmbeddingNet(in_channels=1, adjusting_constant=4)
++        # model = EmbeddingNet(in_channels=1, adjusting_constant=4)
++        model = Encoder()
+     elif params['dset'] == 'CIFAR10':
+         model = EmbeddingNet(in_channels=3, adjusting_constant=5)
++
+     return model
+ 
++
++
+diff --git a/run.py b/run.py
+index f04859f..4cfa91e 100644
+--- a/run.py
++++ b/run.py
+@@ -17,7 +17,7 @@ parser.add_argument('--num_epochs', '-e', type=int, help='number of epochs', def
+ parser.add_argument('--weight_decay', '-w', type=int, help='weight decay', default=0.0001)
+ parser.add_argument('--dset', '-d', type=str, help='dataset name: MNIST, CIFAR10 or FASHIONMNIST (feel free to add your own datasets)', default='MNIST')
+ parser.add_argument('--show_plots', '-p', help='show histograms, confusion matricies, and images throughout training',
+-                    default=True, type=lambda x: (str(x).lower() in ['true', '1', 'yes']))
++                    default=False, type=lambda x: (str(x).lower() in ['true', '1', 'yes']))
+ parser.add_argument('--rotate', type=int, help='constant that adjusts how the learning rate changes', default=10)
+ parser.add_argument('--shear', type=int, help='constant that adjusts how the learning rate changes', default=10)
+ parser.add_argument('--scale', type=float, help='float that tells us how big and small to adjust our images (less than 1.0)', default=0.3)
+diff --git a/triplet.py b/triplet.py
+index ed61b2a..f222649 100644
+--- a/triplet.py
++++ b/triplet.py
+@@ -9,35 +9,100 @@ from tensorboardX import SummaryWriter
+ import datetime
+ from datasets import RandomTripletMiningDataset
+ from util import show_datasets, get_pairwise_accuracy, write_to_tensorboard, print_clustering_accuracy
+-from networks import EmbeddingNet, TripletNet
++from networks import EmbeddingNet, TripletNet, Encoder, Decoder
+ from sklearn.cluster import KMeans
+ import hdbscan
+ from losses import TripletLoss
+ import random
++from torch import nn
+ 
+ 
+-def train(model, device, train_loader, train_loss, epoch, optimizer, sample_data, params=None):
++def train(model, device, train_loader, train_loss, epoch, optimizer, sample_data, params=None, decoder=None,):
+    model.train()
+-   criterion = train_loss
++   triplet_loss = train_loss
++   mse = nn.MSELoss()
++   mses1 = []
++   mses2 = []
++   mses3 = []
++   for batch_idx, (data, target) in enumerate(train_loader):
++      for i in range(len(data)):
++         data[i] = data[i].to(device)
++
++      optimizer.zero_grad()
++
++      with torch.no_grad():
++         anchor, positive, negative = model(data[0], data[1], data[2])
++
++      alphas = torch.rand(params["batch_size"], 1).to(device) * .5
++      interpolated = (1-alphas)*positive + alphas*negative
++      anchor_decoded = decoder(anchor)
++      negative_decoded = decoder(negative)
++      interpolated_decoded = decoder(interpolated)
++
++      anchor, interpolated_decoded_encoded, negative = model(data[0], interpolated_decoded, data[2])
++
++      mse1 = mse(data[0], anchor_decoded)
++      mse2 = mse(data[2], negative_decoded)
++      mse3 = mse(interpolated, interpolated_decoded_encoded)
++      mse_loss = mse1 + mse2 + mse3
++      mse_loss.backward()
++      optimizer.step()
++
++      mses1.append(mse1.item())
++      mses2.append(mse2.item())
++      mses3.append(mse3.item())
++
++
++      if batch_idx % 100 == 0:
++         print('Train Epoch: {} [{}/{} ({:.0f}%)]\tMSE Loss: {:.6f}'.format(
++            epoch, batch_idx*params["batch_size"], len(train_loader.dataset),
++            100. * batch_idx*params["batch_size"] / len(train_loader.dataset), mse_loss.item()))
++      if batch_idx * params["batch_size"] / len(train_loader.dataset) > params["train_fraction"]:
++         break
++
++   plt.figure()
++   plt.plot(np.arange(len(mses1)), mses1, label="mse 1")
++   plt.plot(np.arange(len(mses1)), mses2, label="mse 2")
++   plt.plot(np.arange(len(mses1)), mses3, label="mse 3")
++   plt.legend()
++   plt.show()
+ 
+    for batch_idx, (data, target) in enumerate(train_loader):
+       for i in range(len(data)):
+          data[i] = data[i].to(device)
+ 
+       optimizer.zero_grad()
+-      anchor, positive, negative = model(data[0], data[1], data[2])
+ 
+-      loss = criterion(anchor, positive, negative, device=device)
+-      loss.backward()
++      with torch.no_grad():
++         anchor, positive, negative = model(data[0], data[1], data[2])
++         alphas = torch.rand(params["batch_size"], 1).to(device) * .1
++         interpolated = (1 - alphas) * positive + alphas * negative
++         interpolated_decoded = decoder(interpolated)
++         anchor_decoded = decoder(anchor)
++         negative_decoded = decoder(negative)
++
++      anchor_decoded_encoded, interpolated_decoded_encoded, negative_decoded_encoded = model(anchor_decoded, interpolated_decoded, negative_decoded)
++
++      if batch_idx == 0:
++         show_datasets([anchor_decoded, interpolated_decoded, negative_decoded])
++
++      t_loss = triplet_loss(anchor_decoded_encoded, interpolated_decoded_encoded, negative_decoded_encoded, device=device)
++
++      t_loss.backward()
+       optimizer.step()
+ 
++      anchor, positive, negative = model(data[0], interpolated_decoded, data[2])
++      first_loss = triplet_loss(anchor, interpolated_decoded_encoded, negative, device=device)
++
+       if batch_idx % 100 == 0:
+-         print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
++         print('Train Epoch: {} [{}/{} ({:.0f}%)]\tTriplet Loss: {:.6f}'.format(
+             epoch, batch_idx*params["batch_size"], len(train_loader.dataset),
+-            100. * batch_idx*params["batch_size"] / len(train_loader.dataset), loss.item()))
++            100. * batch_idx*params["batch_size"] / len(train_loader.dataset), first_loss.item()))
+       if batch_idx * params["batch_size"] / len(train_loader.dataset) > params["train_fraction"]:
+          break
+ 
++
++
+ def test(model, device, test_loader, writer, record_histograms=True, epoch=0, params=None):
+    """
+    Use if you have labels.
+@@ -51,6 +116,7 @@ def test(model, device, test_loader, writer, record_histograms=True, epoch=0, pa
+             data[i] = data[i].to(device)
+ 
+          anchor, positive, negative = model(data[0], data[1], data[2])
++
+          distance_positive = (anchor - positive).pow(2).sum(1).pow(.5)
+          distance_negative = (anchor - negative).pow(2).sum(1).pow(.5)
+ 
+@@ -148,7 +214,9 @@ def run_net(params, transforms):
+       embedding_net = EmbeddingNet(in_channels=3, adjusting_constant=5) # Change this to VGG for CIFAR10
+    elif params["dset"] == "MNIST" or params["dset"] == "FASHIONMNIST":
+       embedding_net = EmbeddingNet()
+-   model = TripletNet(embedding_net).to(device)
++   encoder = Encoder()
++   decoder = Decoder().to(device)
++   model = TripletNet(encoder).to(device)
+ 
+    # Sets the datetime string to use as an identifier for the future
+ 
+@@ -188,7 +256,7 @@ def run_net(params, transforms):
+          print("Different pair accuracy:", different_pair_accuracy)
+          params["different_random_pair_accuracy"] = different_pair_accuracy
+          params["similar_random_pair_accuracy"] = similar_pair_accuracy
+-         train(model, device, train_loader, train_loss, epoch, optimizer, sample_data, params=params)
++         train(model, device, train_loader, train_loss, epoch, optimizer, sample_data, params=params, decoder=decoder)
+          embeddings, targets, indices = test(model, device, test_loader, writer, epoch=epoch, params=params)
+ 
+          write_to_tensorboard(params, writer, epoch) # Writes to tensorboard at the end of the epoch
+diff --git a/util.py b/util.py
+index 5a5a5dc..10b6e0d 100644
+--- a/util.py
++++ b/util.py
+@@ -1,5 +1,7 @@
+ import matplotlib.gridspec as gridspec
+ import matplotlib.pyplot as plt
++import matplotlib
++matplotlib.use( 'tkagg' )
+ from sklearn.linear_model import LinearRegression
+ import numpy as np
+ import pickle

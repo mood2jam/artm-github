@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 # The VGG network was taken from https://github.com/kuangliu/pytorch-cifar
 
@@ -106,10 +107,99 @@ class TripletNet(nn.Module):
     def get_embedding(self, x):
         return self.embedding_net(x)
 
+class Generator(nn.Module):
+    def __init__(self, out_channels=1, adjusting_constant=4):
+        super(Generator, self).__init__()
+        self.fc = nn.Sequential(nn.Linear(10, 256),
+                                nn.PReLU(),
+                                nn.Linear(256, 256),
+                                nn.PReLU(),
+                                nn.Linear(256, 64 * adjusting_constant * adjusting_constant)
+                                )
+        self.convnet = nn.Sequential(nn.ConvTranspose2d(64, 32, 5), nn.PReLU(),  # 64@10*10
+                                     nn.ConvTranspose2d(32, 32, 5), nn.PReLU(),  # 64@10*10
+                                     nn.ConvTranspose2d(32, 16, 5), nn.PReLU(),  # 64@10*10
+                                     nn.ConvTranspose2d(16, 16, 5), nn.PReLU(),  # 64@10*10
+                                     nn.ConvTranspose2d(16, 8, 5), nn.PReLU(),  # 64@10*10
+                                     nn.ConvTranspose2d(8, 8, 3), nn.PReLU(),  # 64@10*10
+                                     nn.ConvTranspose2d(8, out_channels, 3), nn.PReLU())  # 32@28*28
+
+    def forward(self, x):
+        output = self.fc(x)
+        output = output.view(-1, 64, 4, 4)
+        output = self.convnet(output)
+        return output
+
+    def get_embedding(self, x):
+        return self.forward(x)
+
+# Used for the bottom two networks only
+args = {
+    'epochs': 500,
+    'width': 32,
+    'latent_width': 4,
+    'depth': 16,
+    'advdepth': 16,
+    'advweight': 0.5,
+    'reg': 0.2,
+    'latent': 10,
+    'colors': 1,
+    'lr': 0.0001,
+    'batch_size': 64,
+    'device': 'cuda:0'
+}
+scales = int(round(math.log(args['width'] // args['latent_width'], 2)))
+
+class Encoder(nn.Module):
+    def __init__(self, scales=scales, depth=args['depth'], latent=args['latent'], colors=args['colors']):
+        super(Encoder, self).__init__()
+        layers = []
+        layers.append(nn.Conv2d(colors, depth, 1, padding=1))
+        kp = depth
+        for scale in range(scales):
+            k = depth << scale
+            layers.extend([nn.Conv2d(kp, k, 3, padding=1), nn.ReLU()])
+            layers.extend([nn.Conv2d(k, k, 3, padding=1), nn.ReLU()])
+            layers.append(nn.MaxPool2d(2))
+            kp = k
+        k = depth << scales
+        layers.extend([nn.Conv2d(kp, k, 3, padding=1), nn.ReLU()])
+        layers.append(nn.Conv2d(k, latent, 3, padding=0))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.net(x)
+        x = x.view(-1, args['latent'])
+        return x
+
+class Decoder(nn.Module):
+    def __init__(self, scales=scales+2, depth=args['depth'], latent=args['latent'], colors=args['colors']):
+        super(Decoder, self).__init__()
+        layers = []
+        kp = latent
+        for scale in range(scales - 1, -1, -1):
+            k = depth << scale
+            layers.extend([nn.Conv2d(kp, k, 3, padding=1), nn.ReLU()])
+            layers.extend([nn.Conv2d(k, k, 3, padding=1), nn.ReLU()])
+            layers.append(nn.Upsample(scale_factor=2))
+            kp = k
+        layers.extend([nn.Conv2d(kp, depth, 3, padding=0), nn.ReLU()])
+        layers.append(nn.Conv2d(depth, colors, 3, padding=0))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = x.view(-1, args['latent'], 1, 1)
+        x = self.net(x)
+        return x
+
 def get_embedding_net(params):
     if params['dset'] == 'MNIST' or params['dset'] == 'FASHIONMNIST':
-        model = EmbeddingNet(in_channels=1, adjusting_constant=4)
+        # model = EmbeddingNet(in_channels=1, adjusting_constant=4)
+        model = Encoder()
     elif params['dset'] == 'CIFAR10':
         model = EmbeddingNet(in_channels=3, adjusting_constant=5)
+
     return model
+
+
 

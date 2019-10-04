@@ -1,0 +1,30 @@
+{
+    "root": "/home/jamison/my_repos/artm-github",
+    "program": "<python with no main file>",
+    "git": {
+        "remote": "https://github.com/mood2jam/artm-github.git",
+        "commit": "63367f1bdd553c0f928d292a4cfd889c3a5e3abd"
+    },
+    "email": "mood2jam@gmail.com",
+    "codeSaved": true,
+    "startedAt": "2019-10-01T05:18:40.138806",
+    "host": "JMM-Blade",
+    "username": "jamison",
+    "executable": "/home/jamison/anaconda3/bin/python",
+    "os": "Linux-5.0.0-29-generic-x86_64-with-debian-buster-sid",
+    "python": "3.7.3",
+    "gpu": "GeForce RTX 2060",
+    "gpu_count": 1,
+    "cpu_count": 12,
+    "cuda": "10.1.243",
+    "args": [
+        "-f",
+        "/home/jamison/.local/share/jupyter/runtime/kernel-37347316-d50d-47b3-a221-39871d34360a.json"
+    ],
+    "state": "running",
+    "jobType": null,
+    "mode": "run",
+    "name": "charmed-feather-7",
+    "project": "artm-github",
+    "heartbeatAt": "2019-10-01T05:21:02.839332"
+}

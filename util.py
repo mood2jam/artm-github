@@ -1,5 +1,7 @@
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use( 'tkagg' )
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import pickle
