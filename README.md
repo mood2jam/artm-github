@@ -1,8 +1,10 @@
 <h1 align="center">
 Augmentations with Random Triplet Mining for Clustering (ARTM)
 </h1">
-  
+
+<p>
 Access the paper here: https://drive.google.com/file/d/11ADht4hmCCN1hUuiP6l3pB3Tj3Uw1HJ1/view?usp=sharing
+</p>
 
 ### Usage
 1. Start by cloning the repository.
