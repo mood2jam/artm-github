@@ -1,1 +1,1 @@
-{"dset": CIFAR10, "rotate": 11, "shear": 24, "scale": 0.2, "diff_choice": 4, "num_pairs": 10, "contrast": 0.2, "saturation": 0.3, "hue": 0.5, "rand_crop_size": 24}
+{"dset": "CIFAR10", "rotate": 11, "shear": 24, "scale": 0.2, "diff_choice": 4, "num_pairs": 10, "contrast": 0.2, "saturation": 0.3, "hue": 0.5, "rand_crop_size": 24}

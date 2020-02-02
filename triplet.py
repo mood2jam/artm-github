@@ -1,5 +1,6 @@
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg') # this is used for default general plotting and not X11 fowarding
+matplotlib.use('tkagg') # this is used for X11 Fowarding
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -195,3 +196,9 @@ def run_net(params, transforms):
 
       writer.export_scalars_to_json(".all_scalars.json")
       writer.close()
+
+      curr_date = datetime.datetime.now()
+      date_str = curr_date.strftime("./models/%m_%d_%Y_%H_%M_model_cifar")
+      print("Saving the full model to: %s" % str(date_str))
+      torch.save(model, date_str)
+      print("Model was saved successfully")
