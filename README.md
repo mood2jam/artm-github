@@ -14,10 +14,9 @@ Augmentations with Random Triplet Mining for Clustering (ARTM)
 Access the paper here: http://openaccess.thecvf.com/content_ICCVW_2019/papers/GMDL/Nina_A_Decoder-Free_Approach_for_Unsupervised_Clustering_and_Manifold_Learning_with_ICCVW_2019_paper.pdf
 
 <h2 align="left">
-BibTex
+BibTex for paper
 </h2">
-  
-Use the following to cite our paper:
+
 
  ``` 
 @inproceedings{nina2019decoder,
