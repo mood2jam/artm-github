@@ -18,11 +18,11 @@ BibTex
 </h2">
   
 Use the following to cite our paper:
-  
+ ``` 
 @inproceedings{nina2019decoder,
   title={A Decoder-Free Approach for Unsupervised Clustering and Manifold Learning with Random Triplet Mining},
   author={Nina, Oliver and Moody, Jamison and Milligan, Clarissa},
   booktitle={Proceedings of the IEEE International Conference on Computer Vision Workshops},
   pages={0--0},
   year={2019}
-}
+}```
