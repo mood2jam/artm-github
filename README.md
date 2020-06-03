@@ -12,3 +12,17 @@ Augmentations with Random Triplet Mining for Clustering (ARTM)
 4. Add your own dataset by creating elif statements specific for your dataset in run.py, triplet.py, datasets.py, and/or networks.py. See the code for more details. You can copy what we did for the other datasets. 
 
 Access the paper here: http://openaccess.thecvf.com/content_ICCVW_2019/papers/GMDL/Nina_A_Decoder-Free_Approach_for_Unsupervised_Clustering_and_Manifold_Learning_with_ICCVW_2019_paper.pdf
+
+<h2 align="left">
+BibTex
+</h2">
+  
+Use the following to cite our paper:
+  
+@inproceedings{nina2019decoder,
+  title={A Decoder-Free Approach for Unsupervised Clustering and Manifold Learning with Random Triplet Mining},
+  author={Nina, Oliver and Moody, Jamison and Milligan, Clarissa},
+  booktitle={Proceedings of the IEEE International Conference on Computer Vision Workshops},
+  pages={0--0},
+  year={2019}
+}
