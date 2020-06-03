@@ -18,6 +18,7 @@ BibTex
 </h2">
   
 Use the following to cite our paper:
+
  ``` 
 @inproceedings{nina2019decoder,
   title={A Decoder-Free Approach for Unsupervised Clustering and Manifold Learning with Random Triplet Mining},
@@ -27,3 +28,4 @@ Use the following to cite our paper:
   year={2019}
 }
 ```
+
