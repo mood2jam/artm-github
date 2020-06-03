@@ -17,8 +17,7 @@ Access the paper here: http://openaccess.thecvf.com/content_ICCVW_2019/papers/GM
 BibTex for paper
 </h2">
 
-
- ``` 
+``` 
 @inproceedings{nina2019decoder,
   title={A Decoder-Free Approach for Unsupervised Clustering and Manifold Learning with Random Triplet Mining},
   author={Nina, Oliver and Moody, Jamison and Milligan, Clarissa},
