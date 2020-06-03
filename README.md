@@ -11,4 +11,4 @@ Augmentations with Random Triplet Mining for Clustering (ARTM)
 3. Set "show_plots" to True to visualize augmented images, distance histograms, and confusion matricies for accuracy.
 4. Add your own dataset by creating elif statements specific for your dataset in run.py, triplet.py, datasets.py, and/or networks.py. See the code for more details. You can copy what we did for the other datasets. 
 
-Access the paper here: https://drive.google.com/file/d/11ADht4hmCCN1hUuiP6l3pB3Tj3Uw1HJ1/view?usp=sharing
+Access the paper here: http://openaccess.thecvf.com/content_ICCVW_2019/papers/GMDL/Nina_A_Decoder-Free_Approach_for_Unsupervised_Clustering_and_Manifold_Learning_with_ICCVW_2019_paper.pdf
